@@ -1,7 +1,10 @@
 
+pool:
+  vmImage: windows-latest
+
 resources:
 - repo: self
-  clean: true
+  clean: 'true'
 
 trigger:
   branches:
@@ -11,13 +14,10 @@ trigger:
     exclude:
     - refs/tag/*
 
-phases:
-- phase: Phase_1
+jobs:
+- job: Phase_1
   displayName: Build Module
-
   condition: succeeded()
-  queue:
-    name: Hosted VS2017
 
   steps:
   - powershell: |
@@ -35,13 +35,10 @@ phases:
       ArtifactName: Release
 
 
-- phase: Phase_2
+- job: Phase_2
   displayName: Test Module on Windows (PSv5)
-
   dependsOn: Phase_1
   condition: succeeded()
-  queue:
-    name: Hosted VS2017
 
   steps:
   - task: DownloadBuildArtifacts@0
@@ -66,13 +63,12 @@ phases:
     condition: succeededOrFailed()
 
 
-- phase: Phase_3
+- job: Phase_3
   displayName: Test Module on Ubuntu
-
   dependsOn: Phase_1
   condition: succeeded()
-  queue:
-    name: Hosted Ubuntu 1604
+  pool:
+    vmImage: 'ubuntu-latest'
 
   steps:
   - task: DownloadBuildArtifacts@0
@@ -98,13 +94,13 @@ phases:
     condition: succeededOrFailed()
 
 
-- phase: Phase_4
+- job: Phase_4
   displayName: Test Module on macOS
 
   dependsOn: Phase_1
   condition: succeeded()
-  queue:
-    name: Hosted macOS
+  pool:
+    vmImage: 'macOS-latest'
 
   steps:
   - task: DownloadBuildArtifacts@0
@@ -129,47 +125,47 @@ phases:
     condition: succeededOrFailed()
 
 
-# Waiting for the agent to support pwsh:
-# https://github.com/Microsoft/azure-pipelines-image-generation/issues/232
-# - phase: Phase_5
-#   displayName: Test Module on Windows (PSv6)
-
-#   dependsOn: Phase_1
-#   condition: succeeded()
-#   queue:
-#     name: Hosted VS2017
-
-#   steps:
-#   - task: DownloadBuildArtifacts@0
-#     displayName: 'Download Build Artifacts'
-#     inputs:
-#       artifactName: Release
-#       downloadPath: '$(Build.SourcesDirectory)'
-
-#   - powershell: |
-#         . ./Tools/setup.ps1
-#         Invoke-Build -Task ShowInfo
-#     displayName: Setup
-#     pwsh: true
-
-#   - powershell: 'Invoke-Build -Task Test'
-#     displayName: Test
-#     pwsh: true
-
-#   - task: PublishTestResults@2
-#     displayName: 'Publish Test Results **/Test-*.xml'
-#     inputs:
-#       testRunner: NUnit
-#       testResultsFiles: '**/Test*.xml'
-#     condition: succeededOrFailed()
-
-- phase: Phase_6
-  displayName: Test Module against Cloud Server
-
+- job: Phase_5
+  displayName: Test Module on Windows (PSv7+)
   dependsOn: Phase_1
   condition: succeeded()
-  queue:
-    name: Hosted VS2017
+
+  steps:
+  - task: DownloadBuildArtifacts@0
+    displayName: 'Download Build Artifacts'
+    inputs:
+      artifactName: Release
+      downloadPath: '$(Build.SourcesDirectory)'
+
+  - task: PowerShell@2
+    displayName: 'Setup'
+    inputs:
+      targetType: 'inline'
+      pwsh: true
+      script: |
+        . ./Tools/setup.ps1
+        Invoke-Build -Task ShowInfo
+
+  - task: PowerShell@2
+    displayName: Test
+    inputs:
+      targetType: 'inline'
+      pwsh: true
+      script: |
+        Invoke-Build -Task Test
+
+  - task: PublishTestResults@2
+    displayName: 'Publish Test Results **/Test-*.xml'
+    inputs:
+      testRunner: NUnit
+      testResultsFiles: '**/Test*.xml'
+    condition: succeededOrFailed()
+
+
+- job: Phase_6
+  displayName: Test Module against Cloud Server
+  dependsOn: Phase_1
+  condition: succeeded()
 
   steps:
   - task: DownloadBuildArtifacts@0

@@ -148,8 +148,8 @@ task CopyModuleFiles {
 
 # Synopsis: Prepare tests for ./Release
 task PrepareTests Init, {
-    $null = New-Item -Path "$env:BHBuildOutput/Tests" -ItemType Directory -ErrorAction SilentlyContinue
-    Copy-Item -Path "$env:BHProjectPath/Tests" -Destination $env:BHBuildOutput -Recurse -Force
+    $null = New-Item -Path "$env:BHBuildOutput/src/test" -ItemType Directory -ErrorAction SilentlyContinue
+    Copy-Item -Path "$env:BHProjectPath/src/test" -Destination $env:BHBuildOutput -Recurse -Force
     Copy-Item -Path "$env:BHProjectPath/PSScriptAnalyzerSettings.psd1" -Destination $env:BHBuildOutput -Force
 }
 
@@ -175,8 +175,8 @@ task CompileModule Init, {
         }
     }
 
-    $PublicFunctions = @( Get-ChildItem -Path "$env:BHBuildOutput/$env:BHProjectName/Public/*.ps1" -ErrorAction SilentlyContinue )
-    $PrivateFunctions = @( Get-ChildItem -Path "$env:BHBuildOutput/$env:BHProjectName/Private/*.ps1" -ErrorAction SilentlyContinue )
+    $PublicFunctions = @( Get-ChildItem -Path "$env:BHBuildOutput/src/main/Public/*.ps1" -ErrorAction SilentlyContinue )
+    $PrivateFunctions = @( Get-ChildItem -Path "$env:BHBuildOutput/src/main/Private/*.ps1" -ErrorAction SilentlyContinue )
 
     foreach ($function in @($PublicFunctions + $PrivateFunctions)) {
         $compiled += (Get-Content -Path $function.FullName -Raw)
@@ -186,7 +186,7 @@ task CompileModule Init, {
     Set-Content -LiteralPath $targetFile -Value $compiled -Encoding UTF8 -Force
     Remove-Utf8Bom -Path $targetFile
 
-    "Private", "Public" | Foreach-Object { Remove-Item -Path "$env:BHBuildOutput/$env:BHProjectName/$_" -Recurse -Force }
+    "Private", "Public" | Foreach-Object { Remove-Item -Path "$env:BHBuildOutput/src/main/$_" -Recurse -Force }
 }
 
 # Synopsis: Use PlatyPS to generate External-Help
@@ -205,21 +205,21 @@ task UpdateManifest GetNextVersion, {
     Import-Module $env:BHPSModuleManifest -Force
     $ModuleAlias = @(Get-Alias | Where-Object {$_.ModuleName -eq "$env:BHProjectName"})
 
-    BuildHelpers\Update-Metadata -Path "$env:BHBuildOutput/$env:BHProjectName/$env:BHProjectName.psd1" -PropertyName ModuleVersion -Value $env:NextBuildVersion
-    # BuildHelpers\Update-Metadata -Path "$env:BHBuildOutput/$env:BHProjectName/$env:BHProjectName.psd1" -PropertyName FileList -Value (Get-ChildItem "$env:BHBuildOutput/$env:BHProjectName" -Recurse).Name
-    BuildHelpers\Set-ModuleFunctions -Name "$env:BHBuildOutput/$env:BHProjectName/$env:BHProjectName.psd1" -FunctionsToExport ([string[]](Get-ChildItem "$env:BHBuildOutput/$env:BHProjectName/Public/*.ps1").BaseName)
-    BuildHelpers\Update-Metadata -Path "$env:BHBuildOutput/$env:BHProjectName/$env:BHProjectName.psd1" -PropertyName AliasesToExport -Value ''
+    BuildHelpers\Update-Metadata -Path "$env:BHBuildOutput/src/main/$env:BHProjectName.psd1" -PropertyName ModuleVersion -Value $env:NextBuildVersion
+    # BuildHelpers\Update-Metadata -Path "$env:BHBuildOutput/$env:BHProjectName/$env:BHProjectName.psd1" -PropertyName FileList -Value (Get-ChildItem "$env:BHBuildOutput/src/main" -Recurse).Name
+    BuildHelpers\Set-ModuleFunctions -Name "$env:BHBuildOutput/src/main/$env:BHProjectName.psd1" -FunctionsToExport ([string[]](Get-ChildItem "$env:BHBuildOutput/src/main/Public/*.ps1").BaseName)
+    BuildHelpers\Update-Metadata -Path "$env:BHBuildOutput/src/main/$env:BHProjectName.psd1" -PropertyName AliasesToExport -Value ''
     if ($ModuleAlias) {
-        BuildHelpers\Update-Metadata -Path "$env:BHBuildOutput/$env:BHProjectName/$env:BHProjectName.psd1" -PropertyName AliasesToExport -Value @($ModuleAlias.Name)
+        BuildHelpers\Update-Metadata -Path "$env:BHBuildOutput/src/main/$env:BHProjectName.psd1" -PropertyName AliasesToExport -Value @($ModuleAlias.Name)
     }
 }
 
 # Synopsis: Create a ZIP file with this build
 task Package Init, {
-    Assert-True { Test-Path "$env:BHBuildOutput\$env:BHProjectName" } "Missing files to package"
+    Assert-True { Test-Path "$env:BHBuildOutput\src/main" } "Missing files to package"
 
     Remove-Item "$env:BHBuildOutput\$env:BHProjectName.zip" -ErrorAction SilentlyContinue
-    $null = Compress-Archive -Path "$env:BHBuildOutput\$env:BHProjectName" -DestinationPath "$env:BHBuildOutput\$env:BHProjectName.zip"
+    $null = Compress-Archive -Path "$env:BHBuildOutput\src/main" -DestinationPath "$env:BHBuildOutput\$env:BHProjectName.zip"
 }
 #endregion BuildRelease
 
@@ -251,8 +251,7 @@ task Test Init, {
         $testResults = Invoke-Pester @parameter
 
         Assert-True ($testResults.FailedCount -eq 0) "$($testResults.FailedCount) Pester test(s) failed."
-    }
-    catch {
+    } catch {
         throw $_
     }
 }, { Init }
@@ -262,7 +261,7 @@ task Test Init, {
 # Synopsis: Publish a new release on github and the PSGallery
 task Deploy Init, PublishToGallery, TagReplository, UpdateHomepage
 
-# Synpsis: Publish the $release to the PSGallery
+# Synopsis: Publish the $release to the PSGallery
 task PublishToGallery {
     Assert-True (-not [String]::IsNullOrEmpty($PSGalleryAPIKey)) "No key for the PSGallery"
     Assert-True {Get-Module $env:BHProjectName -ListAvailable} "Module $env:BHProjectName is not available"

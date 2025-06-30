@@ -31,26 +31,35 @@
             "-NoProfile"
         ]
     },
-    // Show the output window always
-    "showOutput": "always",
     // Associate with test task runner
-    "tasks": [{
-            "taskName": "Build Help",
+    "tasks": [
+        {
+            "label": "Build Help",
             "suppressTaskName": true,
             "args": [
                 "Write-Host 'Invoking platyPS'; New-ExternalHelp -Path .\\docs\\en-US -OutputPath .\\ConfluencePS\\en-US -Force;",
                 "Invoke-Command { Write-Host 'Completed Build task in task runner.' }"
-            ]
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "panel": "shared",
+            }
         },
         {
-            "taskName": "Test",
+            "label": "Test",
             "suppressTaskName": true,
             "isTestCommand": true,
             "args": [
                 "Write-Host 'Invoking Pester'; Invoke-Pester -PesterOption @{IncludeVSCodeMarker=$true};",
                 "Invoke-Command { Write-Host 'Completed Test task in task runner.' }"
             ],
-            "problemMatcher": "$pester"
+            "problemMatcher": "$pester",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "panel": "shared"
+            }
         }
     ]
 }

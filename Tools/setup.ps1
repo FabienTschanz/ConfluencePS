@@ -16,10 +16,15 @@ if (-not ($gallery.Trusted)) {
     Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted -ErrorAction SilentlyContinue
 }
 
-Write-Host "Installing PSDepend"
-Install-Module PSDepend -Scope CurrentUser -Force
-Write-Host "Installing InvokeBuild"
-Install-Module InvokeBuild -Scope CurrentUser -Force
+if (-not (Get-Module -Name PSDepend -ListAvailable)) {
+    Write-Host "Installing PSDepend"
+    Install-Module PSDepend -Scope CurrentUser -Force
+}
+
+if (-not (Get-Module -Name InvokeBuild -ListAvailable)) {
+    Write-Host "Installing InvokeBuild"
+    Install-Module InvokeBuild -Scope CurrentUser -Force
+}
 
 Write-Host "Installing Dependencies"
 Invoke-Build -Task InstallDependencies
